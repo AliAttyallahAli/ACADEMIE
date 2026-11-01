@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.db
+*.db-journal
+uploads/avatars/*
+uploads/scholarship-docs/*
+!uploads/**/.gitkeep
+logs/
+.DS_Store

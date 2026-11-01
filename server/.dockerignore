@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+uploads/avatars/*
+uploads/scholarship-docs/*
+uploads/certificates/*
+.git
+.gitignore
+README.md
+coverage
+.DS_Store

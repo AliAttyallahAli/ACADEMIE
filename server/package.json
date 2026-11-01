@@ -1,0 +1,49 @@
+{
+  "name": "alkher-academy-server",
+  "version": "1.0.0",
+  "description": "Backend API ALKHER ACADEMY — plateforme de formation en ligne",
+  "type": "module",
+  "main": "src/server.js",
+  "author": "ALKHER ACADEMY",
+  "license": "PROPRIETARY",
+  "private": true,
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node src/db/migrate.js",
+    "seed": "node src/db/seed.js",
+    "reset-db": "rm -f alkher.db alkher.db-journal && npm run migrate && npm run seed",
+    "test": "node --test",
+    "lint": "eslint src",
+    "e2e": "bash ../scripts/e2e-test.sh"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "express-validator": "^7.2.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.14",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.33.5",
+    "socket.io": "^4.8.4",
+    "sqlite3": "^6.0.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0",
+    "nodemon": "^3.1.4"
+  }
+}
