@@ -194,15 +194,6 @@ export default function AdminLogin() {
             )}
           </div>
         </div>
-
-        {/* Info comptes de test (dev uniquement) */}
-        {import.meta.env.DEV && (
-          <div className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">
-            <p className="mb-1 font-medium">🧪 Comptes de test :</p>
-            <p><strong>Admin</strong> : admin@alkher.com / Admin@2026</p>
-            <p><strong>Responsable</strong> : créé par l'admin (voir section Responsables)</p>
-          </div>
-        )}
       </div>
     </div>
   );
