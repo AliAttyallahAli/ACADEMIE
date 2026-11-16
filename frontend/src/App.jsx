@@ -12,12 +12,14 @@ import UpdatePrompt from './components/UpdatePrompt';
 // ═══════════════════════════════════════════════════════
 // PUBLIC
 // ═══════════════════════════════════════════════════════
+const Home = lazy(() => import('./pages/public/Home'));
 const Landing = lazy(() => import('./pages/public/Landing'));
 const Login = lazy(() => import('./pages/public/Login'));
 const Register = lazy(() => import('./pages/public/Register'));
 const VerifyPage = lazy(() => import('./pages/public/VerifyPage'));
 const Unauthorized = lazy(() => import('./pages/public/Unauthorized'));
 const NotFound = lazy(() => import('./pages/public/NotFound'));
+const ScholarshipPublicDetail = lazy(() => import('./pages/public/ScholarshipPublicDetail'));
 
 // ═══════════════════════════════════════════════════════
 // LEARNER
@@ -75,12 +77,15 @@ export default function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* ═══════════ PUBLIC ═══════════ */}
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Home />} />
+              <Route path="/home" element={<Home />} />
+              <Route path="/landing" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/verify/:uuid" element={<VerifyPage />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/public/scholarships/:id" element={<ScholarshipPublicDetail />} />
 
               {/* ═══════════ LEARNER (protégé) ═══════════ */}
               <Route
@@ -117,33 +122,33 @@ export default function App() {
               >
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
 
-                {/* ─── Dashboard (stats) ─── */}
+                {/* Dashboard */}
                 <Route path="dashboard" element={<AdminDashboard />} />
 
-                {/* ─── Modules ─── */}
+                {/* Modules + Niveaux + Séances + Quiz */}
                 <Route path="modules" element={<AdminModules />} />
                 <Route path="modules/:id/levels" element={<AdminModuleLevels />} />
                 <Route path="modules/:id/sessions" element={<AdminModuleSessions />} />
                 <Route path="modules/:id/sessions/:sessionId/quiz" element={<AdminQuizEditor />} />
 
-                {/* ─── Apprenantes ─── */}
+                {/* Apprenantes */}
                 <Route path="learners" element={<AdminLearners />} />
 
-                {/* ─── Inscriptions ─── */}
+                {/* Inscriptions */}
                 <Route path="enrollments" element={<AdminEnrollments />} />
 
-                {/* ─── Bourses ─── */}
+                {/* Bourses */}
                 <Route path="scholarships" element={<AdminScholarships />} />
                 <Route path="scholarships/:id/applications" element={<AdminScholarshipApplications />} />
                 <Route path="applications" element={<AdminApplications />} />
 
-                {/* ─── Forum ─── */}
+                {/* Forum */}
                 <Route path="forum" element={<AdminForum />} />
 
-                {/* ─── Support ─── */}
+                {/* Support */}
                 <Route path="support" element={<AdminSupport />} />
 
-                {/* ─── Responsables (SUPER-ADMIN uniquement) ─── */}
+                {/* Responsables (SUPER-ADMIN uniquement) */}
                 <Route
                   path="responsibles"
                   element={
@@ -153,7 +158,7 @@ export default function App() {
                   }
                 />
 
-                {/* ─── Audit log (SUPER-ADMIN uniquement) ─── */}
+                {/* Audit log (SUPER-ADMIN uniquement) */}
                 <Route
                   path="audit-log"
                   element={

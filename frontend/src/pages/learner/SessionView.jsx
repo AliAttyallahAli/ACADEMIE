@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Lock, Unlock, Clock, FileText, Video, Play,
   BookOpen, CheckCircle2, AlertCircle, Download, FileQuestion,
+  ChevronRight, ChevronUp,
 } from 'lucide-react';
 import api from '../../api/axios';
 import { ENDPOINTS } from '../../api/endpoints';
@@ -15,6 +16,7 @@ export default function SessionView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [state, setState] = useState({ loading: true, data: null, error: null, locked: null });
+  const [stickyCollapsed, setStickyCollapsed] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -26,31 +28,18 @@ export default function SessionView() {
         const data = err.response?.data;
         if (status === 403) {
           setState({
-            loading: false,
-            data: null,
-            error: null,
-            locked: {
-              reason: data?.error,
-              availableOn: data?.available_on,
-            },
+            loading: false, data: null, error: null,
+            locked: { reason: data?.error, availableOn: data?.available_on },
           });
         } else {
-          setState({
-            loading: false,
-            data: null,
-            error: data?.error || 'Erreur',
-            locked: null,
-          });
+          setState({ loading: false, data: null, error: data?.error || 'Erreur', locked: null });
         }
       }
     })();
   }, [id]);
 
-  if (state.loading) {
-    return <div className="flex min-h-[60vh] items-center justify-center"><Spinner size="lg" /></div>;
-  }
+  if (state.loading) return <div className="flex min-h-[60vh] items-center justify-center"><Spinner size="lg" /></div>;
 
-  // Cas verrouillé
   if (state.locked) {
     const { reason, availableOn } = state.locked;
     const isDateLock = !!availableOn;
@@ -63,17 +52,11 @@ export default function SessionView() {
           <div className="mx-auto mb-3 rounded-full bg-gray-100 p-4">
             {isDateLock ? <Clock className="h-8 w-8 text-gray-400" /> : <Lock className="h-8 w-8 text-gray-400" />}
           </div>
-          <h2 className="text-lg font-bold">
-            {isDateLock ? 'Séance pas encore disponible' : 'Séance verrouillée'}
-          </h2>
+          <h2 className="text-lg font-bold">{isDateLock ? 'Pas encore disponible' : 'Verrouillée'}</h2>
           <p className="mt-2 text-sm text-gray-600">
-            {isDateLock
-              ? `Cette séance sera disponible le ${formatDate(availableOn)}.`
-              : reason || 'Terminez la séance précédente pour la débloquer.'}
+            {isDateLock ? `Disponible le ${formatDate(availableOn)}.` : reason || 'Terminez la séance précédente.'}
           </p>
-          {!isDateLock && (
-            <Link to="/modules" className="btn-primary mt-4 inline-flex">Voir mes modules</Link>
-          )}
+          {!isDateLock && <Link to="/modules" className="btn-primary mt-4 inline-flex">Voir mes modules</Link>}
         </div>
       </div>
     );
@@ -89,14 +72,15 @@ export default function SessionView() {
   }
 
   const { session, progress, quiz, attempts, resources } = state.data;
+  const quizPending = quiz && progress.is_completed !== 1 && attempts?.remaining > 0;
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${quizPending ? 'pb-32 lg:pb-4' : ''}`}>
       <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1 text-sm text-alkher-600 hover:underline">
         <ArrowLeft className="h-4 w-4" /> Retour
       </button>
 
-      {/* Header séance */}
+      {/* Header */}
       <div className="card">
         <div className="mb-2 flex items-center gap-2">
           <span className="badge bg-alkher-100 text-alkher-700">Séance {session.session_number || ''}</span>
@@ -125,11 +109,59 @@ export default function SessionView() {
         <SessionContent session={session} />
       </div>
 
+      {/* Quiz (inline) */}
+      {quiz && (
+        <div className={`card ${quizPending ? 'border-2 border-alkher-300 bg-alkher-50/30' : ''}`}>
+          <h2 className="mb-3 flex items-center gap-2 font-bold">
+            <FileQuestion className="h-4 w-4 text-alkher-600" /> Quiz d'évaluation
+          </h2>
+
+          {progress.is_completed === 1 ? (
+            <div className="rounded-lg bg-green-100 p-4 text-sm text-green-800">
+              <CheckCircle2 className="mr-1 inline h-4 w-4" />
+              Quiz validé. Score : <strong>{attempts?.best_score?.toFixed(0) ?? 0}%</strong>
+            </div>
+          ) : (
+            <>
+              <div className="mb-3 grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-lg bg-white p-2">
+                  <p className="text-gray-500">Seuil</p>
+                  <p className="text-base font-bold text-alkher-700">{quiz.pass_threshold}%</p>
+                </div>
+                <div className="rounded-lg bg-white p-2">
+                  <p className="text-gray-500">Tentatives</p>
+                  <p className="text-base font-bold">{attempts?.used} / {quiz.max_attempts}</p>
+                </div>
+                <div className="rounded-lg bg-white p-2">
+                  <p className="text-gray-500">Meilleur</p>
+                  <p className="text-base font-bold">
+                    {attempts?.best_score != null ? `${attempts.best_score.toFixed(0)}%` : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {attempts?.remaining > 0 ? (
+                <Link to={`/quiz/${session.id}`} className="btn-primary w-full">
+                  <Play className="mr-2 h-4 w-4" />
+                  {attempts.used === 0 ? 'Commencer le quiz' : 'Retenter le quiz'}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Link>
+              ) : (
+                <div className="rounded-lg bg-red-100 p-4 text-sm text-red-800">
+                  <AlertCircle className="mr-1 inline h-4 w-4" />
+                  Nombre maximum de tentatives atteint.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Ressources */}
       {resources && resources.length > 0 && (
         <div className="card">
           <h2 className="mb-3 flex items-center gap-2 font-bold">
-            <FileText className="h-4 w-4 text-alkher-600" /> Ressources
+            <FileText className="h-4 w-4 text-alkher-600" /> Ressources complémentaires
           </h2>
           <div className="space-y-2">
             {resources.map((r) => (
@@ -151,41 +183,35 @@ export default function SessionView() {
         </div>
       )}
 
-      {/* Quiz */}
-      {quiz && (
-        <div className="card">
-          <h2 className="mb-3 flex items-center gap-2 font-bold">
-            <FileQuestion className="h-4 w-4 text-alkher-600" /> Quiz d'évaluation
-          </h2>
+      <div className="text-center pt-2">
+        <Link to="/modules" className="text-sm text-alkher-600 hover:underline">
+          ← Retour à mes modules
+        </Link>
+      </div>
 
-          {progress.is_completed === 1 ? (
-            <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800">
-              <CheckCircle2 className="mr-1 inline h-4 w-4" />
-              Quiz déjà validé. Score maximal : <strong>{attempts?.best_score?.toFixed(0)}%</strong>
-            </div>
-          ) : (
-            <>
-              <div className="mb-3 text-sm text-gray-600">
-                <p>Seuil de réussite : <strong>{quiz.pass_threshold}%</strong></p>
-                <p>Tentatives : <strong>{attempts?.used} / {quiz.max_attempts}</strong></p>
-                {attempts?.best_score !== null && attempts?.best_score !== undefined && (
-                  <p>Meilleur score : <strong>{attempts.best_score.toFixed(0)}%</strong></p>
-                )}
+      {/* ✅ Sticky mobile (raccourci) */}
+      {quizPending && (
+        <div className="fixed inset-x-0 bottom-20 z-30 px-4 lg:hidden">
+          <div className="rounded-xl border-2 border-alkher-500 bg-white p-3 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileQuestion className="h-4 w-4 text-alkher-600" />
+                <p className="text-sm font-bold">Quiz disponible</p>
               </div>
-
-              {attempts?.remaining > 0 ? (
-                <Link to={`/quiz/${session.id}`} className="btn-primary w-full">
-                  <Play className="mr-2 h-4 w-4" />
-                  {attempts.used === 0 ? 'Commencer le quiz' : 'Retenter le quiz'}
-                </Link>
-              ) : (
-                <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800">
-                  <AlertCircle className="mr-1 inline h-4 w-4" />
-                  Nombre maximum de tentatives atteint.
-                </div>
-              )}
-            </>
-          )}
+              <button onClick={() => setStickyCollapsed(!stickyCollapsed)} className="text-gray-400">
+                <ChevronUp className={`h-4 w-4 transition ${stickyCollapsed ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+            {!stickyCollapsed && (
+              <p className="mb-2 text-xs text-gray-500">
+                {attempts?.used} / {quiz.max_attempts} tentatives · Seuil {quiz.pass_threshold}%
+              </p>
+            )}
+            <Link to={`/quiz/${session.id}`} className="btn-primary w-full text-sm">
+              <Play className="mr-2 h-4 w-4" />
+              {attempts.used === 0 ? 'Commencer' : 'Retenter'}
+            </Link>
+          </div>
         </div>
       )}
     </div>
@@ -193,31 +219,18 @@ export default function SessionView() {
 }
 
 function SessionContent({ session }) {
-  if (!session.content) {
-    return <p className="text-sm italic text-gray-500">Contenu à venir...</p>;
-  }
-
+  if (!session.content) return <p className="text-sm italic text-gray-500">Contenu à venir...</p>;
   if (session.content_type === 'video') {
     return (
       <div className="aspect-video overflow-hidden rounded-lg bg-black">
-        <iframe
-          src={session.content}
-          className="h-full w-full"
-          allowFullScreen
-          title={session.title}
-        />
+        <iframe src={session.content} className="h-full w-full" allowFullScreen title={session.title} />
       </div>
     );
   }
-
   if (session.content_type === 'pdf') {
     return (
-      <a
-        href={session.content}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50"
-      >
+      <a href={session.content} target="_blank" rel="noopener noreferrer"
+        className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
         <FileText className="h-8 w-8 text-red-500" />
         <div className="flex-1">
           <p className="font-medium">Document PDF</p>
@@ -227,8 +240,6 @@ function SessionContent({ session }) {
       </a>
     );
   }
-
-  // Texte
   return (
     <div
       className="prose prose-sm max-w-none whitespace-pre-line text-gray-700"

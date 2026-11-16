@@ -9,6 +9,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 import Spinner from '../../components/Spinner';
 import Toast from '../../components/Toast';
 import FormField from '../../components/FormField';
+import ShareButton from '../../components/ShareButton';
 import { formatDate } from '../../utils/formatDate';
 
 export default function ScholarshipDetail() {
@@ -69,6 +70,7 @@ export default function ScholarshipDetail() {
 
   const { scholarship: s, my_application: app } = state.data;
   const closed = s.status === 'closed' || (s.closing_date && s.closing_date < new Date().toISOString().split('T')[0]);
+  const shareUrl = `${window.location.origin}/scholarships/${s.id}`;
 
   return (
     <div className="space-y-4">
@@ -81,7 +83,7 @@ export default function ScholarshipDetail() {
       {/* Header */}
       <div className="card">
         <div className="mb-3 flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0 flex-1">
             <span className="badge bg-alkher-100 text-alkher-700">{s.type}</span>
             <h1 className="mt-2 text-xl font-bold">{s.title}</h1>
             {s.organization && (
@@ -90,13 +92,17 @@ export default function ScholarshipDetail() {
               </p>
             )}
           </div>
-          <span
-            className={`badge ${
-              closed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-            }`}
-          >
-            {closed ? 'Clôturée' : 'Ouverte'}
-          </span>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <ShareButton
+              url={shareUrl}
+              title={s.title}
+              description={s.description}
+              variant="full"
+            />
+            <span className={`badge ${closed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              {closed ? 'Clôturée' : 'Ouverte'}
+            </span>
+          </div>
         </div>
 
         <div className="grid gap-3 border-t pt-3 text-sm md:grid-cols-2">

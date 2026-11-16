@@ -10,7 +10,9 @@ import { dbAsync } from '../../config/database.js';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-// ─── LISTE ───
+// ═══════════════════════════════════════════════════════════
+// LISTE
+// ═══════════════════════════════════════════════════════════
 router.get('/', asyncHandler(async (req, res) => {
   const { status, type } = req.query;
   const where = [];
@@ -29,133 +31,36 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ items });
 }));
 
-// ─── DÉTAIL ───
-router.get('/:id', asyncHandler(async (req, res) => {
-  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
-  if (!s) return res.status(404).json({ error: 'Bourse introuvable' });
-  res.json(s);
-}));
-
-// ─── CRÉATION ───
-router.post('/', asyncHandler(async (req, res) => {
-  const { type, title, description, organization, amount, opening_date, closing_date, eligibility } = req.body;
-  if (!type || !title) return res.status(422).json({ error: 'Type et titre requis' });
-
-  const result = await dbAsync.run(
-    `INSERT INTO scholarships (type, title, description, organization, amount,
-      opening_date, closing_date, eligibility, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
-    [type, title, description ?? null, organization ?? null, amount ?? null,
-     opening_date ?? null, closing_date ?? null, eligibility ?? null]
-  );
-
-  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [result.lastInsertRowid]);
-  res.status(201).json({ success: true, scholarship: s });
-}));
-
-// ─── MISE À JOUR ───
-router.put('/:id', asyncHandler(async (req, res) => {
-  const allowed = ['type', 'title', 'description', 'organization', 'amount', 'opening_date', 'closing_date', 'eligibility', 'status'];
-  const sets = [];
+// ═══════════════════════════════════════════════════════════
+// TOUTES LES CANDIDATURES (avant /:id pour éviter conflit)
+// ═══════════════════════════════════════════════════════════
+router.get('/applications/all', asyncHandler(async (req, res) => {
+  const { status, scholarship_id, search } = req.query;
+  const where = [];
   const params = [];
-  for (const k of allowed) {
-    if (req.body[k] !== undefined) { sets.push(`${k} = ?`); params.push(req.body[k]); }
+  if (status) { where.push('sa.status = ?'); params.push(status); }
+  if (scholarship_id) { where.push('sa.scholarship_id = ?'); params.push(scholarship_id); }
+  if (search) {
+    where.push('(l.full_name LIKE ? OR l.email LIKE ? OR s.title LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
-  if (!sets.length) return res.status(400).json({ error: 'Aucune modification' });
-  params.push(req.params.id);
-  await dbAsync.run(`UPDATE scholarships SET ${sets.join(', ')} WHERE id = ?`, params);
-  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
-  res.json({ success: true, scholarship: s });
-}));
 
-// ─── UPLOAD COUVERTURE ───
-router.post('/:id/cover', upload.single('cover'), asyncHandler(async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Aucun fichier' });
-
-  const s = await dbAsync.get('SELECT id FROM scholarships WHERE id = ?', [req.params.id]);
-  if (!s) return res.status(404).json({ error: 'Bourse introuvable' });
-
-  const dir = path.resolve('uploads/scholarships');
-  fs.mkdirSync(dir, { recursive: true });
-
-  const filename = `scholarship-${req.params.id}-${crypto.randomUUID()}.webp`;
-  const filepath = path.join(dir, filename);
-
-  await sharp(req.file.buffer)
-    .resize(800, 400, { fit: 'cover' })
-    .webp({ quality: 85 })
-    .toFile(filepath);
-
-  const url = `/uploads/scholarships/${filename}`;
-  await dbAsync.run('UPDATE scholarships SET cover_image_url = ? WHERE id = ?', [url, req.params.id]);
-
-  const updated = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
-  res.json({ success: true, scholarship: updated });
-}));
-
-// ─── SUPPRESSION ───
-router.delete('/:id', asyncHandler(async (req, res) => {
-  await dbAsync.run('DELETE FROM scholarships WHERE id = ?', [req.params.id]);
-  res.json({ success: true, deleted: true });
-}));
-
-// ─── PUBLICATION ───
-router.post('/:id/publish', asyncHandler(async (req, res) => {
-  await dbAsync.run("UPDATE scholarships SET status = 'published' WHERE id = ?", [req.params.id]);
-  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
-  res.json({ success: true, scholarship: s });
-}));
-
-// ─── CLÔTURE ───
-router.post('/:id/close', asyncHandler(async (req, res) => {
-  await dbAsync.run("UPDATE scholarships SET status = 'closed' WHERE id = ?", [req.params.id]);
-  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
-  res.json({ success: true, scholarship: s });
-}));
-
-// ─── CANDIDATURES ───
-router.get('/:id/applications', asyncHandler(async (req, res) => {
-  const items = await dbAsync.all(
-    `SELECT sa.*, l.full_name AS learner_name, l.email AS learner_email
-     FROM scholarship_applications sa
-     JOIN learners l ON l.id = sa.learner_id
-     WHERE sa.scholarship_id = ?
-     ORDER BY sa.applied_at DESC`,
-    [req.params.id]
-  );
-  res.json({ items });
-}));
-
-// ─── REVIEW CANDIDATURE ───
-router.post('/applications/:id/review', asyncHandler(async (req, res) => {
-  const { status, review_note } = req.body;
-  if (!['accepted', 'rejected'].includes(status)) {
-    return res.status(422).json({ error: 'Statut invalide' });
-  }
-  await dbAsync.run(
-    `UPDATE scholarship_applications SET status = ?, review_note = ?,
-      reviewed_by_type = 'admin', reviewed_by_id = ?, reviewed_at = datetime('now')
-     WHERE id = ?`,
-    [status, review_note ?? null, req.user?.id || 1, req.params.id]
-  );
-  res.json({ success: true });
-}));
-
-// ─── LISTE DES CANDIDATURES D'UNE BOURSE ───
-router.get('/:id/applications', asyncHandler(async (req, res) => {
-  const scholarship = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
-  if (!scholarship) return res.status(404).json({ error: 'Bourse introuvable' });
+  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const items = await dbAsync.all(
     `SELECT sa.*, l.full_name AS learner_name, l.email AS learner_email,
-            l.birth_date, l.country, l.phone
+            l.birth_date, l.phone, l.country,
+            s.title AS scholarship_title, s.type AS scholarship_type,
+            s.organization, s.closing_date
      FROM scholarship_applications sa
      JOIN learners l ON l.id = sa.learner_id
-     WHERE sa.scholarship_id = ?
-     ORDER BY 
+     JOIN scholarships s ON s.id = sa.scholarship_id
+     ${whereSql}
+     ORDER BY
        CASE WHEN sa.status = 'pending' THEN 0 ELSE 1 END,
-       sa.applied_at DESC`,
-    [req.params.id]
+       sa.applied_at DESC
+     LIMIT 500`,
+    params
   );
 
   const stats = {
@@ -165,10 +70,12 @@ router.get('/:id/applications', asyncHandler(async (req, res) => {
     rejected: items.filter((a) => a.status === 'rejected').length,
   };
 
-  res.json({ scholarship, items, stats });
+  res.json({ items, stats });
 }));
 
-// ─── REVIEW CANDIDATURE ───
+// ═══════════════════════════════════════════════════════════
+// REVIEW CANDIDATURE
+// ═══════════════════════════════════════════════════════════
 router.post('/applications/:id/review', asyncHandler(async (req, res) => {
   const { status, review_note } = req.body;
   if (!['accepted', 'rejected'].includes(status)) {
@@ -209,18 +116,146 @@ router.post('/applications/:id/review', asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
-// ─── STATS GLOBALES CANDIDATURES ───
-router.get('/applications/all', asyncHandler(async (req, res) => {
+// ═══════════════════════════════════════════════════════════
+// DÉTAIL D'UNE BOURSE
+// ═══════════════════════════════════════════════════════════
+router.get('/:id', asyncHandler(async (req, res) => {
+  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
+  if (!s) return res.status(404).json({ error: 'Bourse introuvable' });
+  res.json(s);
+}));
+
+// ═══════════════════════════════════════════════════════════
+// CANDIDATURES D'UNE BOURSE
+// ═══════════════════════════════════════════════════════════
+router.get('/:id/applications', asyncHandler(async (req, res) => {
+  const scholarship = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
+  if (!scholarship) return res.status(404).json({ error: 'Bourse introuvable' });
+
   const items = await dbAsync.all(
     `SELECT sa.*, l.full_name AS learner_name, l.email AS learner_email,
-            s.title AS scholarship_title, s.type AS scholarship_type
+            l.birth_date, l.country, l.phone
      FROM scholarship_applications sa
      JOIN learners l ON l.id = sa.learner_id
-     JOIN scholarships s ON s.id = sa.scholarship_id
-     ORDER BY sa.applied_at DESC
-     LIMIT 200`
+     WHERE sa.scholarship_id = ?
+     ORDER BY
+       CASE WHEN sa.status = 'pending' THEN 0 ELSE 1 END,
+       sa.applied_at DESC`,
+    [req.params.id]
   );
-  res.json({ items });
+
+  const stats = {
+    total: items.length,
+    pending: items.filter((a) => a.status === 'pending').length,
+    accepted: items.filter((a) => a.status === 'accepted').length,
+    rejected: items.filter((a) => a.status === 'rejected').length,
+  };
+
+  res.json({ scholarship, items, stats });
+}));
+
+// ═══════════════════════════════════════════════════════════
+// CRÉATION
+// ═══════════════════════════════════════════════════════════
+router.post('/', asyncHandler(async (req, res) => {
+  const { type, title, description, organization, amount, opening_date, closing_date, eligibility } = req.body;
+
+  if (!type || !title) {
+    return res.status(422).json({ error: 'Type et titre requis' });
+  }
+
+  const result = await dbAsync.run(
+    `INSERT INTO scholarships
+      (type, title, description, organization, amount,
+       opening_date, closing_date, eligibility, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+    [
+      type,
+      title,
+      description ?? null,
+      organization ?? null,
+      amount ?? null,
+      opening_date ?? null,
+      closing_date ?? null,
+      eligibility ?? null,
+    ]
+  );
+
+  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [result.lastInsertRowid]);
+  res.status(201).json({ success: true, scholarship: s });
+}));
+
+// ═══════════════════════════════════════════════════════════
+// MISE À JOUR
+// ═══════════════════════════════════════════════════════════
+router.put('/:id', asyncHandler(async (req, res) => {
+  const allowed = ['type', 'title', 'description', 'organization', 'amount', 'opening_date', 'closing_date', 'eligibility', 'status'];
+  const sets = [];
+  const params = [];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) {
+      sets.push(`${k} = ?`);
+      params.push(req.body[k]);
+    }
+  }
+  if (!sets.length) return res.status(400).json({ error: 'Aucune modification' });
+  params.push(req.params.id);
+  await dbAsync.run(`UPDATE scholarships SET ${sets.join(', ')} WHERE id = ?`, params);
+  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
+  res.json({ success: true, scholarship: s });
+}));
+
+// ═══════════════════════════════════════════════════════════
+// UPLOAD IMAGE DE COUVERTURE
+// ═══════════════════════════════════════════════════════════
+router.post('/:id/cover', upload.single('cover'), asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier' });
+
+  const s = await dbAsync.get('SELECT id FROM scholarships WHERE id = ?', [req.params.id]);
+  if (!s) return res.status(404).json({ error: 'Bourse introuvable' });
+
+  const dir = path.resolve('uploads/scholarships');
+  fs.mkdirSync(dir, { recursive: true });
+
+  const filename = `scholarship-${req.params.id}-${crypto.randomUUID()}.webp`;
+  const filepath = path.join(dir, filename);
+
+  await sharp(req.file.buffer)
+    .resize(800, 400, { fit: 'cover' })
+    .webp({ quality: 85 })
+    .toFile(filepath);
+
+  const url = `/uploads/scholarships/${filename}`;
+  await dbAsync.run('UPDATE scholarships SET cover_image_url = ? WHERE id = ?', [url, req.params.id]);
+
+  const updated = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
+  res.json({ success: true, scholarship: updated });
+}));
+
+// ═══════════════════════════════════════════════════════════
+// PUBLIER
+// ═══════════════════════════════════════════════════════════
+router.post('/:id/publish', asyncHandler(async (req, res) => {
+  await dbAsync.run("UPDATE scholarships SET status = 'published' WHERE id = ?", [req.params.id]);
+  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
+  res.json({ success: true, scholarship: s });
+}));
+
+// ═══════════════════════════════════════════════════════════
+// CLÔTURER
+// ═══════════════════════════════════════════════════════════
+router.post('/:id/close', asyncHandler(async (req, res) => {
+  await dbAsync.run("UPDATE scholarships SET status = 'closed' WHERE id = ?", [req.params.id]);
+  const s = await dbAsync.get('SELECT * FROM scholarships WHERE id = ?', [req.params.id]);
+  res.json({ success: true, scholarship: s });
+}));
+
+// ═══════════════════════════════════════════════════════════
+// SUPPRIMER
+// ═══════════════════════════════════════════════════════════
+router.delete('/:id', asyncHandler(async (req, res) => {
+  await dbAsync.run('DELETE FROM scholarships WHERE id = ?', [req.params.id]);
+  res.json({ success: true, deleted: true });
 }));
 
 export default router;

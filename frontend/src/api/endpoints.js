@@ -1,5 +1,16 @@
 export const ENDPOINTS = {
-  // ═══════════════ AUTH ═══════════════
+  // ═══════════════════════════════════════════════════
+  // PUBLIC (sans authentification)
+  // ═══════════════════════════════════════════════════
+  public: {
+    scholarships: '/public/scholarships',
+    scholarship: (id) => `/public/scholarships/${id}`,
+    stats: '/public/stats',
+  },
+
+  // ═══════════════════════════════════════════════════
+  // AUTH
+  // ═══════════════════════════════════════════════════
   auth: {
     register: '/auth/register',
     login: '/auth/login',
@@ -8,7 +19,9 @@ export const ENDPOINTS = {
     me: '/auth/me',
   },
 
-  // ═══════════════ LEARNER ═══════════════
+  // ═══════════════════════════════════════════════════
+  // LEARNER
+  // ═══════════════════════════════════════════════════
   dashboard: '/learner/dashboard',
   modules: '/modules',
   sessions: (id) => `/sessions/${id}`,
@@ -20,25 +33,25 @@ export const ENDPOINTS = {
   alkherpaySimulate: '/alkherpay/simulate',
   library: '/library',
 
-  // ═══════════════ NOTIFICATIONS ═══════════════
+  // ─── Notifications ───
   notifications: '/notifications',
   notificationsCount: '/notifications/count',
   notificationRead: (id) => `/notifications/${id}/read`,
   notificationsReadAll: '/notifications/read-all',
   notificationDelete: (id) => `/notifications/${id}`,
 
-  // ═══════════════ CERTIFICATS ═══════════════
+  // ─── Certificats ───
   certificates: '/certificates',
   certificateDownload: (uuid) => `/certificates/${uuid}/download`,
   verify: (uuid) => `/verify/${uuid}`,
 
-  // ═══════════════ BOURSES (learner) ═══════════════
+  // ─── Bourses (learner) ───
   scholarships: '/scholarships',
   scholarship: (id) => `/scholarships/${id}`,
   scholarshipApply: (id) => `/scholarships/${id}/apply`,
   myApplications: '/my-applications',
 
-  // ═══════════════ PROFIL ═══════════════
+  // ─── Profil ───
   profile: {
     get: '/profile',
     update: '/profile',
@@ -46,7 +59,7 @@ export const ENDPOINTS = {
     password: '/profile/password',
   },
 
-  // ═══════════════ FORUM (learner) ═══════════════
+  // ─── Forum ───
   forum: {
     createPost: '/forum',
     moduleThreads: (id) => `/forum/module/${id}`,
@@ -54,14 +67,16 @@ export const ENDPOINTS = {
     deletePost: (id) => `/forum/${id}`,
   },
 
-  // ═══════════════ SUPPORT (learner) ═══════════════
+  // ─── Support ───
   support: {
     create: '/support',
     list: '/support',
     ticket: (id) => `/support/${id}`,
   },
 
-  // ═══════════════ ADMIN ═══════════════
+  // ═══════════════════════════════════════════════════
+  // ADMIN / RESPONSABLE
+  // ═══════════════════════════════════════════════════
   admin: {
     // ─── Stats ───
     stats: '/admin/stats',
@@ -72,12 +87,12 @@ export const ENDPOINTS = {
     moduleCover: (id) => `/admin/modules/${id}/cover`,
     moduleRegenerate: (id) => `/admin/modules/${id}/regenerate-sessions`,
 
-    // ─── Niveaux (Levels) ───
+    // ─── Niveaux ───
     levelsByModule: (mid) => `/admin/levels/module/${mid}`,
     level: (id) => `/admin/levels/${id}`,
     levelCreate: (mid) => `/admin/levels/module/${mid}`,
 
-    // ─── Séances (Sessions) ───
+    // ─── Séances ───
     sessionsByModule: (mid) => `/admin/sessions/module/${mid}`,
     session: (id) => `/admin/sessions/${id}`,
     sessionUpload: (id) => `/admin/sessions/${id}/upload`,
